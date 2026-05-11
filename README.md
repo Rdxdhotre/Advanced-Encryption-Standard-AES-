@@ -8,7 +8,8 @@ This project is a responsive student registration dashboard built with React, Ty
 - Default admin login form with email and password validation
 - Student registration form with all required fields
 - Create, read, update, and delete student records
-- Two-level encryption before and after backend processing
+- Field-level AES encryption for every student field
+- Backend-side AES encryption before MongoDB persistence
 - MongoDB persistence
 - Responsive UI for mobile, tablet, and desktop
 - Backend pagination for the student directory
@@ -43,6 +44,8 @@ Only these student APIs are used in the project:
 - `GET /api/students?page=1&limit=6` - Get paginated students
 - `PUT /api/student/:id` - Update a student
 - `DELETE /api/student/:id` - Delete a student
+
+For `POST /api/register` and `PUT /api/student/:id`, the request body sends each student field as its own encrypted string instead of wrapping the full form in one encrypted `data` value.
 
 ## Setup Instructions
 
@@ -133,17 +136,24 @@ npm run build
 
 ## How Encryption Is Implemented
 
-The project uses a two-level AES-based encryption flow for student data.
+The project uses a two-level AES-based encryption flow for each student field.
 
 ### 1. Frontend encryption
 
 - File: `client/src/utils/crypto.ts`
-- Before sending student data to the backend, the frontend encrypts the payload using `VITE_FRONTEND_SECRET_KEY`
-- The encrypted payload is sent as:
+- Before sending student data to the backend, the frontend encrypts each field separately using `VITE_FRONTEND_SECRET_KEY`
+- The encrypted request body is sent as:
 
 ```json
 {
-  "data": "encrypted-string"
+  "fullName": "encrypted-string",
+  "email": "encrypted-string",
+  "phoneNumber": "encrypted-string",
+  "dateOfBirth": "encrypted-string",
+  "gender": "encrypted-string",
+  "address": "encrypted-string",
+  "courseEnrolled": "encrypted-string",
+  "password": "encrypted-string"
 }
 ```
 
@@ -152,26 +162,31 @@ The project uses a two-level AES-based encryption flow for student data.
 - Files:
   - `server/src/utils/crypto.ts`
   - `server/src/controllers/studentController.ts`
-- The backend first decrypts the frontend-encrypted payload using `FRONTEND_SECRET_KEY`
+- The backend decrypts each incoming field using `FRONTEND_SECRET_KEY`
 - It validates the decrypted student data
-- It then applies a second encryption layer using `BACKEND_SECRET_KEY`
-- The final encrypted string is stored in MongoDB
+- It then re-encrypts each field using `BACKEND_SECRET_KEY`
+- The final stored record in MongoDB keeps encrypted values per field
 
 ### 3. Data retrieval flow
 
-- When `GET /api/students` is called, the backend decrypts one layer
-- The backend sends data back still encrypted with the frontend key
-- The frontend decrypts the final layer and renders plain student details in the UI
+- When `GET /api/students` is called, the backend decrypts the database layer for each field
+- The backend returns the same field structure, still encrypted with the frontend key
+- The frontend decrypts each returned field and renders plain student details in the UI
 
 ### Encryption summary
 
-1. Frontend encrypts student form data
-2. Backend decrypts the frontend layer
-3. Backend validates the payload
-4. Backend encrypts the data again with its own secret
-5. MongoDB stores the doubly processed encrypted data
-6. Backend removes one layer during fetch
+1. Frontend encrypts every student field separately
+2. Backend decrypts each field with the frontend secret
+3. Backend validates the plain student payload
+4. Backend encrypts each frontend-encrypted field again with its own secret
+5. MongoDB stores encrypted values per field
+6. Backend removes only the database encryption layer during fetch
 7. Frontend removes the final layer for display
+
+### Compatibility note
+
+- The backend still accepts the older `{ "data": "encrypted-string" }` request shape for compatibility
+- Older string-based records in MongoDB are also converted on read so existing data can still be displayed
 
 ## Project Structure
 
