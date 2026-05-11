@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const studentSchema = new mongoose.Schema(
   {
     data: {
-      type: String,
+      type: mongoose.Schema.Types.Mixed,
       required: true,
     },
     emailIndex: {

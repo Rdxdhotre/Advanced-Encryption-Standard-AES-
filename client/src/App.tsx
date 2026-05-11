@@ -10,11 +10,15 @@ import {
   type StudentFormValues,
   type StudentRecord,
 } from "./types/student";
-import { decryptData, encryptData } from "./utils/crypto";
+import {
+  decryptStudentPayload,
+  encryptStudentPayload,
+  type EncryptedStudentPayload,
+} from "./utils/crypto";
 
 interface ApiStudent {
   _id: string;
-  data: string;
+  data: EncryptedStudentPayload;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -81,7 +85,7 @@ const App = () => {
     return {
       students: response.data.students.map((student) => {
         const decryptedStudent = normalizeStudentFormValues(
-          decryptData<StudentFormValues>(student.data),
+          decryptStudentPayload(student.data),
         );
 
         return {
@@ -167,7 +171,7 @@ const App = () => {
 
     try {
       await axios.post(`${API_BASE_URL}/register`, {
-        data: encryptData(values),
+        ...encryptStudentPayload(values),
       });
 
       toast.success("Student registered successfully.");
@@ -195,7 +199,7 @@ const App = () => {
 
     try {
       await axios.put(`${API_BASE_URL}/student/${studentBeingEdited.id}`, {
-        data: encryptData(values),
+        ...encryptStudentPayload(values),
       });
 
       toast.success("Student updated successfully.");
